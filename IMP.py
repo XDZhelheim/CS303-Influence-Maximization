@@ -4,7 +4,6 @@ import argparse
 import os
 import random
 import math
-import numpy as np
 
 core = 8
 
@@ -84,31 +83,12 @@ class Graph:
             activity_set=new_activity_set
         return nodes
 
-    # def random_RR_LT(self, v) -> list:
-    #     self.marked=[False]*self.size
-    #     self.marked[v]=True
-    #     activity_node=v
-    #     nodes=[v]
-    #     while activity_node!=0:
-    #         new_activity_node=0
-    #         neighbors=[]
-    #         for edge in self.inadj[activity_node]:
-    #             if not self.marked[edge.v]:
-    #                 neighbors.append(edge.v)
-    #         if not neighbors:
-    #             break
-    #         new_activity_node=random.choice(neighbors)
-    #         self.marked[new_activity_node]=True
-    #         nodes.append(new_activity_node)
-    #         activity_node=new_activity_node
-    #     return nodes
-
     def random_RR_LT(self, v) -> list:
         self.marked=[False]*self.size
         self.marked[v]=True
         activity_node=v
         nodes=[v]
-        while activity_node!=0:
+        while activity_node:
             new_activity_node=0
             neighbors=[]
             for edge in self.inadj[activity_node]:
@@ -155,28 +135,46 @@ def logCnk(n, k):
 def random_RR(model:str, network:Graph, v):
     return network.random_RR_IC(v) if model=="IC" else network.random_RR_LT(v)
 
+# def node_selection(network:Graph, R:list, k:int):
+#     Sk=[]
+#     node_deg=[0]*network.size
+#     node_RR=[[] for i in range(network.size)]
+#     count=0
+#     for i in range(0, len(R)):
+#         RR=R[i]
+#         for node in RR:
+#             node_deg[node]+=1
+#             node_RR[node].append(i)
+#     for i in range(k):
+#         maxnode=np.argmax(np.array(node_deg))
+#         Sk.append(maxnode)
+#         count+=len(node_RR[maxnode])
+#         temp=node_RR[maxnode].copy()
+#         for j in temp:
+#             RR=R[j]
+#             for node in RR:
+#                 node_deg[node]-=1
+#                 node_RR[node].remove(j)
+#     return Sk, count/len(R)
+
 def node_selection(network:Graph, R:list, k:int):
-    Sk=set()
-    node_deg=[0]*network.size
-    node_RR={}
+    Sk=[]
+    in_RRs=[[] for i in range(network.size)]
     count=0
-    for i in range(0, len(R)):
-        RR=R[i]
+    for RR in R:
         for node in RR:
-            node_deg[node]+=1
-            if node not in node_RR:
-                node_RR[node]=[]
-            node_RR[node].append(i)
+            in_RRs[node].append(RR)
     for i in range(k):
-        maxnode=np.argmax(np.array(node_deg))
-        Sk.add(maxnode)
-        count+=len(node_RR[maxnode])
-        temp=node_RR[maxnode].copy()
-        for j in temp:
-            RR=R[j]
+        maxnode=1
+        for node in range(1, network.size):
+            if len(in_RRs[node])>len(in_RRs[maxnode]):
+                maxnode=node
+        Sk.append(maxnode)
+        count+=len(in_RRs[maxnode])
+        temp=in_RRs[maxnode].copy()
+        for RR in temp:
             for node in RR:
-                node_deg[node]-=1
-                node_RR[node].remove(j)
+                in_RRs[node].remove(RR)
     return Sk, count/len(R)
 
 def sampling(model:str, network:Graph, k:int, ep, l) -> list:
@@ -184,7 +182,7 @@ def sampling(model:str, network:Graph, k:int, ep, l) -> list:
     LB=1
     n=network.size-1
     ep_prime=ep*math.sqrt(2)
-    for i in range(1, int(math.log2(n-1))+1):
+    for i in range(1, int(math.log2(n))):
         x=n/pow(2, i)
         lambda_prime=((2+2*ep_prime/3)*(logCnk(n, k)+l*math.log(n)+math.log(math.log2(n)))*n)/pow(ep_prime, 2)
         theta=lambda_prime/x
@@ -219,6 +217,27 @@ def IMM(model:str, network:Graph, k:int, ep, l):
 
     return Sk
 
+# def sampling_timelimit(model, network, time_limit):
+#     R=[]
+#     start=time.time()
+#     while True:
+#         v=random.randint(1, network.size-1)
+#         R.append(random_RR(model, network, v))
+#         end=time.time()
+#         if (end-start>10):
+#             break
+#     end=time.time()
+#     print("Time:"+str(end-start))
+#     return R
+
+# def IMM_timelimit(model, network, k, time_limit):
+#     R=sampling_timelimit(model, network, time_limit)
+#     start=time.time()
+#     Sk, FR=node_selection(network, R, k)
+#     end=time.time()
+#     print("Time:"+str(end-start))
+#     return Sk
+
 if __name__ == '__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('-i', '--file_name', type=str, default='network.txt')
@@ -243,6 +262,7 @@ if __name__ == '__main__':
 
     # 50: e=0.06/0.075
     result=IMM(model, network, seed_count, 0.1, 1)
+    # result=IMM_timelimit(model, network, seed_count, time_limit)
     for value in result:
         print(value)
 
