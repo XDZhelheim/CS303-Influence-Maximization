@@ -280,8 +280,15 @@ if __name__ == '__main__':
         line=lines[i].split(" ")
         network.add_directed_edge(int(line[0]), int(line[1]), float(line[2]))
 
-    # 50: e=0.06/0.075
-    result=IMM(model, network, seed_count, 0.1, 1)
+    l=1
+    ep=0.1
+    if network.size<=100:
+        ep=0.03
+    elif network.size>=39999:
+        ep=0.25
+
+    # HEPT 50: ep=0.06/0.075
+    result=IMM(model, network, seed_count, ep, l)
     # result=IMM_timelimit(model, network, seed_count, time_limit)
     for value in result:
         print(value)
