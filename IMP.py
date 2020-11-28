@@ -4,6 +4,7 @@ import argparse
 import os
 import random
 import math
+import multiprocessing as mp
 
 core = 8
 
@@ -135,6 +136,12 @@ def logCnk(n, k):
 def random_RR(model:str, network:Graph, v):
     return network.random_RR_IC(v) if model=="IC" else network.random_RR_LT(v)
 
+def random_RR_mp(model, network, length):
+    result=[]
+    for i in range(length):
+        result.append(random_RR(model, network, random.randint(1, network.size-1)))
+    return result
+
 # def node_selection(network:Graph, R:list, k:int):
 #     Sk=[]
 #     node_deg=[0]*network.size
@@ -186,9 +193,15 @@ def sampling(model:str, network:Graph, k:int, ep, l) -> list:
         x=n/pow(2, i)
         lambda_prime=((2+2*ep_prime/3)*(logCnk(n, k)+l*math.log(n)+math.log(math.log2(n)))*n)/pow(ep_prime, 2)
         theta=lambda_prime/x
-        while len(R)<=theta:
-            v=random.randint(1, n)
-            R.append(random_RR(model, network, v))
+
+        # while len(R)<=theta:
+        #     v=random.randint(1, n)
+        #     R.append(random_RR(model, network, v))
+
+        pool = mp.Pool(core)
+        for i in range(core):
+            R+=pool.apply_async(random_RR_mp, args=(model, network, int((theta-len(R))/core))).get()
+
         S, FR=node_selection(network, R, k)
         if n*FR>=(1+ep_prime)*x:
             LB=n*FR/(1+ep_prime)
@@ -197,9 +210,16 @@ def sampling(model:str, network:Graph, k:int, ep, l) -> list:
     b=math.sqrt((1-1/math.e)*(logCnk(n, k)+l*math.log(n)+math.log(2)))
     lambda_star=2*n*pow(((1-1/math.e)*a+b), 2)*pow(ep, -2)
     theta=lambda_star/LB
-    while len(R)<=theta:
-        v=random.randint(1, n)
-        R.append(random_RR(model, network, v))
+
+    # while len(R)<=theta:
+    #     v=random.randint(1, n)
+    #     R.append(random_RR(model, network, v))
+
+    for i in range(core):
+        R+=pool.apply_async(random_RR_mp, args=(model, network, int((theta-len(R))/core))).get()
+    pool.close()
+    pool.join()
+
     return R
 
 def IMM(model:str, network:Graph, k:int, ep, l):
@@ -242,7 +262,7 @@ if __name__ == '__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('-i', '--file_name', type=str, default='network.txt')
     parser.add_argument('-k', '--seedCount', type=int, default=5)
-    parser.add_argument('-m', '--model', type=str, default='LT')
+    parser.add_argument('-m', '--model', type=str, default='IC')
     parser.add_argument('-t', '--time_limit', type=int, default=60)
 
     args=parser.parse_args()
