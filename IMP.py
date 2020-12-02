@@ -189,6 +189,7 @@ def sampling(model:str, network:Graph, k:int, ep, l) -> list:
     LB=1
     n=network.size-1
     ep_prime=ep*math.sqrt(2)
+    pool = mp.Pool(core)
     for i in range(1, int(math.log2(n))):
         x=n/pow(2, i)
         lambda_prime=((2+2*ep_prime/3)*(logCnk(n, k)+l*math.log(n)+math.log(math.log2(n)))*n)/pow(ep_prime, 2)
@@ -197,8 +198,7 @@ def sampling(model:str, network:Graph, k:int, ep, l) -> list:
         # while len(R)<=theta:
         #     v=random.randint(1, n)
         #     R.append(random_RR(model, network, v))
-
-        pool = mp.Pool(core)
+        
         for i in range(core):
             R+=pool.apply_async(random_RR_mp, args=(model, network, int((theta-len(R))/core))).get()
 
@@ -262,7 +262,7 @@ if __name__ == '__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('-i', '--file_name', type=str, default='network.txt')
     parser.add_argument('-k', '--seedCount', type=int, default=5)
-    parser.add_argument('-m', '--model', type=str, default='IC')
+    parser.add_argument('-m', '--model', type=str, default='LT')
     parser.add_argument('-t', '--time_limit', type=int, default=60)
 
     args=parser.parse_args()
